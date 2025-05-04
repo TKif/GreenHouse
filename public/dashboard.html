@@ -1,48 +1,133 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Dashboard da Estufa</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
-      padding: 20px;
-    }
-    h1 {
-      color: #2c3e50;
-    }
-    pre {
       background: #f4f4f4;
-      padding: 10px;
-      border: 1px solid #ccc;
-      overflow-x: auto;
+      color: #333;
+      padding: 20px;
+      max-width: 800px;
+      margin: auto;
+    }
+
+    h1 {
+      text-align: center;
+    }
+
+    .card {
+      background: white;
+      padding: 15px;
+      margin-bottom: 15px;
+      border-radius: 8px;
+      box-shadow: 0 0 8px rgba(0,0,0,0.1);
+    }
+
+    .data {
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+    }
+
+    .data div {
+      flex: 1 0 30%;
+      margin: 5px 0;
+    }
+
+    canvas {
+      margin-top: 20px;
     }
   </style>
 </head>
 <body>
-  <h1>Dashboard da Estufa</h1>
-  <pre id="output">Carregando dados...</pre>
+  <h1>Dashboard da Estufa 🌿</h1>
+  <div class="card">
+    <h2>Última leitura</h2>
+    <div class="data" id="latestData">
+      <div>Temperatura: <strong id="temp">--</strong> °C</div>
+      <div>Umidade: <strong id="hum">--</strong> %</div>
+      <div>Solo: <strong id="soil">--</strong> %</div>
+    </div>
+    <div>Timestamp: <span id="time">--</span></div>
+  </div>
+
+  <div class="card">
+    <h2>Histórico</h2>
+    <canvas id="dataChart" width="400" height="200"></canvas>
+  </div>
 
   <script>
-    fetch('/api/data')
-      .then(response => {
-        if (!response.ok) {
-          throw new Error('Erro ao buscar dados');
+    async function fetchData() {
+      try {
+        const response = await fetch('/api/data');
+        const data = await response.json();
+
+        if (!Array.isArray(data) || data.length === 0) {
+          document.getElementById('latestData').innerHTML = 'Nenhum dado encontrado.';
+          return;
         }
-        return response.json();
-      })
-      .then(data => {
-        if (data.length === 0) {
-          document.getElementById('output').textContent = 'Nenhum dado recebido ainda.';
-        } else {
-          const ultimo = data[data.length - 1];
-          document.getElementById('output').textContent = JSON.stringify(ultimo, null, 2);
-        }
-      })
-      .catch(err => {
-        document.getElementById('output').textContent = 'Erro ao carregar dados.';
-        console.error(err);
-      });
+
+        const latest = data[data.length - 1];
+
+        // Atualiza dados atuais
+        document.getElementById('temp').textContent = latest.temperature;
+        document.getElementById('hum').textContent = latest.humidity;
+        document.getElementById('soil').textContent = latest.soil;
+        document.getElementById('time').textContent = new Date(latest.timestamp).toLocaleString();
+
+        // Prepara os dados para o gráfico
+        const labels = data.map(d => new Date(d.timestamp).toLocaleTimeString());
+        const tempData = data.map(d => d.temperature);
+        const humData = data.map(d => d.humidity);
+        const soilData = data.map(d => d.soil);
+
+        const ctx = document.getElementById('dataChart').getContext('2d');
+        new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [
+              {
+                label: 'Temperatura (°C)',
+                data: tempData,
+                borderColor: 'red',
+                fill: false
+              },
+              {
+                label: 'Umidade (%)',
+                data: humData,
+                borderColor: 'blue',
+                fill: false
+              },
+              {
+                label: 'Solo (%)',
+                data: soilData,
+                borderColor: 'green',
+                fill: false
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              y: {
+                beginAtZero: true
+              }
+            }
+          }
+        });
+      } catch (error) {
+        console.error(error);
+        document.body.innerHTML = '<h2>Erro ao carregar dados.</h2>';
+      }
+    }
+
+    fetchData();
   </script>
 </body>
 </html>
