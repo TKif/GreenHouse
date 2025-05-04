@@ -14,120 +14,204 @@
       max-width: 800px;
       margin: auto;
     }
-
     h1 {
       text-align: center;
+      color: #2e7d32;
     }
-
     .card {
       background: white;
-      padding: 15px;
-      margin-bottom: 15px;
+      padding: 20px;
+      margin-bottom: 20px;
       border-radius: 8px;
-      box-shadow: 0 0 8px rgba(0,0,0,0.1);
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
     }
-
-    .data {
-      display: flex;
-      justify-content: space-between;
-      flex-wrap: wrap;
+    .data-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 15px;
+      margin: 15px 0;
     }
-
-    .data div {
-      flex: 1 0 30%;
-      margin: 5px 0;
+    .data-item {
+      background: #f8f9fa;
+      padding: 10px;
+      border-radius: 5px;
+      text-align: center;
     }
-
-    canvas {
+    .data-value {
+      font-size: 24px;
+      font-weight: bold;
+      color: #2c3e50;
+    }
+    #chart-container {
+      position: relative;
+      height: 300px;
       margin-top: 20px;
+    }
+    .timestamp {
+      color: #666;
+      font-size: 0.9em;
+      text-align: right;
     }
   </style>
 </head>
 <body>
   <h1>Dashboard da Estufa 🌿</h1>
+  
   <div class="card">
-    <h2>Última leitura</h2>
-    <div class="data" id="latestData">
-      <div>Temperatura: <strong id="temp">--</strong> °C</div>
-      <div>Umidade: <strong id="hum">--</strong> %</div>
-      <div>Solo: <strong id="soil">--</strong> %</div>
+    <h2>Dados Atuais</h2>
+    <div class="data-grid">
+      <div class="data-item">
+        <div>🌡️ Temperatura</div>
+        <div class="data-value" id="temp">--</div>
+        <div>°C</div>
+      </div>
+      <div class="data-item">
+        <div>💧 Umidade</div>
+        <div class="data-value" id="hum">--</div>
+        <div>%</div>
+      </div>
+      <div class="data-item">
+        <div>🌱 Solo</div>
+        <div class="data-value" id="soil">--</div>
+        <div>%</div>
+      </div>
     </div>
-    <div>Timestamp: <span id="time">--</span></div>
+    <div class="timestamp">Atualizado: <span id="time">--</span></div>
   </div>
 
   <div class="card">
-    <h2>Histórico</h2>
-    <canvas id="dataChart" width="400" height="200"></canvas>
+    <h2>Histórico (Últimas 24 horas)</h2>
+    <div id="chart-container">
+      <canvas id="dataChart"></canvas>
+    </div>
   </div>
 
   <script>
+    // Variável global para o gráfico
+    let sensorChart = null;
+    const MAX_DATA_POINTS = 50; // Limite de pontos no gráfico
+
+    // Configuração inicial do gráfico
+    function initChart() {
+      const ctx = document.getElementById('dataChart').getContext('2d');
+      sensorChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [
+            {
+              label: 'Temperatura (°C)',
+              data: [],
+              borderColor: '#e53935',
+              backgroundColor: 'rgba(229, 57, 53, 0.1)',
+              borderWidth: 2,
+              tension: 0.1
+            },
+            {
+              label: 'Umidade (%)',
+              data: [],
+              borderColor: '#1e88e5',
+              backgroundColor: 'rgba(30, 136, 229, 0.1)',
+              borderWidth: 2,
+              tension: 0.1
+            },
+            {
+              label: 'Solo (%)',
+              data: [],
+              borderColor: '#43a047',
+              backgroundColor: 'rgba(67, 160, 71, 0.1)',
+              borderWidth: 2,
+              tension: 0.1
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: false,
+              suggestedMin: 0,
+              suggestedMax: 100
+            }
+          },
+          plugins: {
+            legend: {
+              position: 'top'
+            },
+            tooltip: {
+              mode: 'index',
+              intersect: false
+            }
+          },
+          interaction: {
+            mode: 'nearest',
+            axis: 'x',
+            intersect: false
+          }
+        }
+      });
+    }
+
+    // Atualiza os dados do gráfico
+    function updateChart(data) {
+      if (!sensorChart || !Array.isArray(data)) return;
+
+      // Limita o número de pontos no gráfico
+      if (data.length > MAX_DATA_POINTS) {
+        data = data.slice(-MAX_DATA_POINTS);
+      }
+
+      const labels = data.map(d => new Date(d.timestamp).toLocaleTimeString());
+      
+      sensorChart.data.labels = labels;
+      sensorChart.data.datasets[0].data = data.map(d => d.temperature);
+      sensorChart.data.datasets[1].data = data.map(d => d.humidity);
+      sensorChart.data.datasets[2].data = data.map(d => d.soil);
+      
+      // Ajusta os limites do eixo Y dinamicamente
+      const allValues = data.flatMap(d => [d.temperature, d.humidity, d.soil]);
+      const min = Math.max(0, Math.min(...allValues) - 5);
+      const max = Math.min(100, Math.max(...allValues) + 5);
+      
+      sensorChart.options.scales.y.min = min;
+      sensorChart.options.scales.y.max = max;
+      
+      sensorChart.update();
+    }
+
+    // Busca dados da API
     async function fetchData() {
       try {
         const response = await fetch('/api/data');
         const data = await response.json();
 
         if (!Array.isArray(data) || data.length === 0) {
-          document.getElementById('latestData').innerHTML = 'Nenhum dado encontrado.';
+          console.warn('Nenhum dado encontrado');
           return;
         }
 
         const latest = data[data.length - 1];
-
-        // Atualiza dados atuais
-        document.getElementById('temp').textContent = latest.temperature;
-        document.getElementById('hum').textContent = latest.humidity;
-        document.getElementById('soil').textContent = latest.soil;
+        
+        // Atualiza os valores atuais
+        document.getElementById('temp').textContent = latest.temperature?.toFixed(1) || '--';
+        document.getElementById('hum').textContent = latest.humidity?.toFixed(1) || '--';
+        document.getElementById('soil').textContent = latest.soil?.toFixed(1) || '--';
         document.getElementById('time').textContent = new Date(latest.timestamp).toLocaleString();
-
-        // Prepara os dados para o gráfico
-        const labels = data.map(d => new Date(d.timestamp).toLocaleTimeString());
-        const tempData = data.map(d => d.temperature);
-        const humData = data.map(d => d.humidity);
-        const soilData = data.map(d => d.soil);
-
-        const ctx = document.getElementById('dataChart').getContext('2d');
-        new Chart(ctx, {
-          type: 'line',
-          data: {
-            labels,
-            datasets: [
-              {
-                label: 'Temperatura (°C)',
-                data: tempData,
-                borderColor: 'red',
-                fill: false
-              },
-              {
-                label: 'Umidade (%)',
-                data: humData,
-                borderColor: 'blue',
-                fill: false
-              },
-              {
-                label: 'Solo (%)',
-                data: soilData,
-                borderColor: 'green',
-                fill: false
-              }
-            ]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-              y: {
-                beginAtZero: true
-              }
-            }
-          }
-        });
+        
+        // Atualiza o gráfico
+        updateChart(data);
       } catch (error) {
-        console.error(error);
-        document.body.innerHTML = '<h2>Erro ao carregar dados.</h2>';
+        console.error('Erro ao buscar dados:', error);
       }
     }
 
-    fetchData();
+    // Inicialização
+    document.addEventListener('DOMContentLoaded', () => {
+      initChart();
+      fetchData();
+      setInterval(fetchData, 30000); // Atualiza a cada 30 segundos
+    });
   </script>
 </body>
 </html>
