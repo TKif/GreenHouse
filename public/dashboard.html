@@ -1,33 +1,48 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
   <title>Dashboard da Estufa</title>
   <style>
-    body { font-family: Arial; padding: 20px; }
-    h1 { color: green; }
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+    h1 {
+      color: #2c3e50;
+    }
+    pre {
+      background: #f4f4f4;
+      padding: 10px;
+      border: 1px solid #ccc;
+      overflow-x: auto;
+    }
   </style>
 </head>
 <body>
   <h1>Dashboard da Estufa</h1>
-  <div id="dados">
-    <!-- Aqui serão exibidos os dados enviados pelo ESP32 -->
-  </div>
+  <pre id="output">Carregando dados...</pre>
 
   <script>
-    async function carregarDados() {
-      try {
-        const resposta = await fetch('/dados');
-        const dados = await resposta.json();
-        document.getElementById('dados').innerText = JSON.stringify(dados, null, 2);
-      } catch (erro) {
-        document.getElementById('dados').innerText = 'Erro ao carregar dados.';
-      }
-    }
-
-    setInterval(carregarDados, 3000);
-    carregarDados();
+    fetch('/api/data')
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Erro ao buscar dados');
+        }
+        return response.json();
+      })
+      .then(data => {
+        if (data.length === 0) {
+          document.getElementById('output').textContent = 'Nenhum dado recebido ainda.';
+        } else {
+          const ultimo = data[data.length - 1];
+          document.getElementById('output').textContent = JSON.stringify(ultimo, null, 2);
+        }
+      })
+      .catch(err => {
+        document.getElementById('output').textContent = 'Erro ao carregar dados.';
+        console.error(err);
+      });
   </script>
 </body>
 </html>
