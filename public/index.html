@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Greenhouse Monitor</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #e9f5ec;
+      color: #333;
+      text-align: center;
+      padding: 40px 20px;
+    }
+    h1 {
+      font-size: 2.5em;
+      margin-bottom: 10px;
+    }
+    p {
+      font-size: 1.2em;
+      margin-bottom: 30px;
+    }
+    .buttons {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      flex-wrap: wrap;
+      margin-bottom: 40px;
+    }
+    .buttons a {
+      background: #4CAF50;
+      color: white;
+      padding: 15px 25px;
+      text-decoration: none;
+      border-radius: 8px;
+      font-weight: bold;
+      transition: background 0.3s;
+    }
+    .buttons a:hover {
+      background: #388E3C;
+    }
+    #status {
+      font-size: 1.1em;
+      padding: 10px 20px;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      display: inline-block;
+    }
+  </style>
+</head>
+<body>
+  <h1>Greenhouse Monitor</h1>
+  <p>Monitoramento em tempo real de temperatura, umidade e umidade do solo</p>
+
+  <div class="buttons">
+    <a href="/dashboard">Acessar Dashboard</a>
+    <a href="https://github.com/seu-repo" target="_blank">Documentação</a>
+    <a href="mailto:contato@greenhouse.com">Contato</a>
+  </div>
+
+  <div id="status">Verificando status do servidor...</div>
+
+  <script>
+    async function checkServerStatus() {
+      try {
+        const res = await fetch('/api/data');
+        const data = await res.json();
+        if (data.length === 0) {
+          document.getElementById('status').innerText = "Sem dados disponíveis";
+          document.getElementById('status').style.background = "#f8d7da";
+        } else {
+          const latest = new Date(data[data.length - 1].timestamp);
+          const now = new Date();
+          const diff = (now - latest) / 1000; // segundos
+          if (diff < 30) {
+            document.getElementById('status').innerText = "🟢 Servidor recebendo dados do ESP32";
+            document.getElementById('status').style.background = "#d4edda";
+          } else {
+            document.getElementById('status').innerText = "🟡 Dados não atualizados nos últimos 30s";
+            document.getElementById('status').style.background = "#fff3cd";
+          }
+        }
+      } catch (e) {
+        document.getElementById('status').innerText = "🔴 Erro ao verificar status";
+        document.getElementById('status').style.background = "#f8d7da";
+      }
+    }
+
+    checkServerStatus();
+    setInterval(checkServerStatus, 10000);
+  </script>
+</body>
+</html>
