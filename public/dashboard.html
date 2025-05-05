@@ -53,66 +53,42 @@
   </div>
   <canvas id="chart" height="100"></canvas>
 
-  <script>
-    async function loadData() {
-      try {
-        const res = await fetch('/api/data?limit=50');
-        const data = await res.json();
+ <script>
+  async function fetchDataAndUpdateUI() {
+    try {
+      const response = await fetch('/api/data');
+      const data = await response.json();
 
-        if (!data.length) return;
-
-        const labels = data.map(entry => new Date(entry.timestamp).toLocaleTimeString());
-        const temp = data.map(entry => entry.temperature);
-        const hum = data.map(entry => entry.humidity);
-        const soil = data.map(entry => entry.soil);
-        const latest = data[data.length - 1];
-
-        document.getElementById('temp').textContent = `Temperatura: ${latest.temperature} °C`;
-        document.getElementById('hum').textContent = `Umidade: ${latest.humidity}%`;
-        document.getElementById('soil').textContent = `Solo: ${latest.soil}%`;
-        document.getElementById('time').textContent = `Atualizado: ${new Date(latest.timestamp).toLocaleString('pt-BR')}`;
-
-        new Chart(document.getElementById('chart'), {
-          type: 'line',
-          data: {
-            labels,
-            datasets: [
-              {
-                label: 'Temperatura (°C)',
-                data: temp,
-                borderColor: 'red',
-                fill: false
-              },
-              {
-                label: 'Umidade (%)',
-                data: hum,
-                borderColor: 'blue',
-                fill: false
-              },
-              {
-                label: 'Solo (%)',
-                data: soil,
-                borderColor: 'green',
-                fill: false
-              }
-            ]
-          },
-          options: {
-            responsive: true,
-            interaction: { mode: 'index', intersect: false },
-            stacked: false,
-            scales: {
-              y: { beginAtZero: true }
-            }
-          }
-        });
-      } catch (error) {
-        document.getElementById('latest-data').innerHTML = `<div style="color:red;">Erro ao carregar dados.</div>`;
-        console.error(error);
+      if (data.length === 0) {
+        document.getElementById('status').innerText = 'Nenhum dado disponível.';
+        return;
       }
-    }
 
-    loadData();
-  </script>
+      const latest = data[data.length - 1];
+      document.getElementById('status').innerHTML = `
+        <strong>Temperatura:</strong> ${latest.temperature} °C<br>
+        <strong>Umidade:</strong> ${latest.humidity} %<br>
+        <strong>Solo:</strong> ${latest.soil} %<br>
+        <strong>Última atualização:</strong> ${new Date(latest.timestamp).toLocaleString()}
+      `;
+
+      // Atualiza o gráfico
+      chart.data.labels = data.map(d => new Date(d.timestamp).toLocaleTimeString());
+      chart.data.datasets[0].data = data.map(d => d.temperature);
+      chart.data.datasets[1].data = data.map(d => d.humidity);
+      chart.data.datasets[2].data = data.map(d => d.soil);
+      chart.update();
+
+    } catch (error) {
+      document.getElementById('status').innerText = 'Erro ao carregar dados.';
+      console.error('Erro ao buscar dados:', error);
+    }
+  }
+
+  // Chama a função ao carregar a página
+  fetchDataAndUpdateUI();
+  // Atualiza a cada 5 segundos
+  setInterval(fetchDataAndUpdateUI, 5000);
+</script>
 </body>
 </html>
