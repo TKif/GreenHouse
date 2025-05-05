@@ -19,6 +19,8 @@
       display: flex;
       justify-content: space-around;
       margin: 30px 0;
+      flex-wrap: wrap;
+      gap: 15px;
     }
     .data div {
       background: white;
@@ -26,6 +28,8 @@
       border-radius: 8px;
       box-shadow: 0 0 10px rgba(0,0,0,0.1);
       font-size: 1.2rem;
+      min-width: 150px;
+      text-align: center;
     }
     canvas {
       background: white;
@@ -34,18 +38,11 @@
       padding: 10px;
       max-width: 100%;
     }
-    @media (max-width: 600px) {
-      .data {
-        flex-direction: column;
-        gap: 15px;
-        align-items: center;
-      }
-    }
   </style>
 </head>
 <body>
   <h1>Dashboard da Estufa</h1>
-  <div class="data" id="latest-data">
+  <div class="data">
     <div id="temp">Temperatura: --</div>
     <div id="hum">Umidade: --</div>
     <div id="soil">Solo: --</div>
@@ -53,42 +50,72 @@
   </div>
   <canvas id="chart" height="100"></canvas>
 
- <script>
-  async function fetchDataAndUpdateUI() {
-    try {
-      const response = await fetch('/api/data');
-      const data = await response.json();
-
-      if (data.length === 0) {
-        document.getElementById('status').innerText = 'Nenhum dado disponível.';
-        return;
+  <script>
+    const ctx = document.getElementById('chart').getContext('2d');
+    const chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [
+          {
+            label: 'Temperatura (°C)',
+            borderColor: 'red',
+            data: [],
+            fill: false
+          },
+          {
+            label: 'Umidade (%)',
+            borderColor: 'blue',
+            data: [],
+            fill: false
+          },
+          {
+            label: 'Solo (%)',
+            borderColor: 'green',
+            data: [],
+            fill: false
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          x: {
+            ticks: { autoSkip: true, maxTicksLimit: 10 }
+          },
+          y: {
+            beginAtZero: true
+          }
+        }
       }
+    });
 
-      const latest = data[data.length - 1];
-      document.getElementById('status').innerHTML = `
-        <strong>Temperatura:</strong> ${latest.temperature} °C<br>
-        <strong>Umidade:</strong> ${latest.humidity} %<br>
-        <strong>Solo:</strong> ${latest.soil} %<br>
-        <strong>Última atualização:</strong> ${new Date(latest.timestamp).toLocaleString()}
-      `;
+    async function fetchDataAndUpdateUI() {
+      try {
+        const response = await fetch('/api/data');
+        const data = await response.json();
 
-      // Atualiza o gráfico
-      chart.data.labels = data.map(d => new Date(d.timestamp).toLocaleTimeString());
-      chart.data.datasets[0].data = data.map(d => d.temperature);
-      chart.data.datasets[1].data = data.map(d => d.humidity);
-      chart.data.datasets[2].data = data.map(d => d.soil);
-      chart.update();
+        if (!data.length) return;
 
-    } catch (error) {
-      document.getElementById('status').innerText = 'Erro ao carregar dados.';
-      console.error('Erro ao buscar dados:', error);
+        const latest = data[data.length - 1];
+        document.getElementById('temp').innerText = `Temperatura: ${latest.temperature} °C`;
+        document.getElementById('hum').innerText = `Umidade: ${latest.humidity} %`;
+        document.getElementById('soil').innerText = `Solo: ${latest.soil} %`;
+        document.getElementById('time').innerText = `Atualizado: ${new Date(latest.timestamp).toLocaleString()}`;
+
+        // Atualiza o gráfico
+        chart.data.labels = data.map(d => new Date(d.timestamp).toLocaleTimeString());
+        chart.data.datasets[0].data = data.map(d => d.temperature);
+        chart.data.datasets[1].data = data.map(d => d.humidity);
+        chart.data.datasets[2].data = data.map(d => d.soil);
+        chart.update();
+      } catch (err) {
+        console.error('Erro ao carregar dados:', err);
+      }
     }
-  }
 
-  // Chama a função ao carregar a página
-  fetchDataAndUpdateUI();
-  // Atualiza a cada 5 segundos
-  setInterval(fetchDataAndUpdateUI, 5000);
-</script>
+    fetchDataAndUpdateUI();
+    setInterval(fetchDataAndUpdateUI, 5000);
+  </script>
 </body>
 </html>
