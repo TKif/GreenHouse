@@ -6,38 +6,12 @@
   <title>Dashboard da Estufa</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    body {
-      font-family: 'Segoe UI', sans-serif;
-      background: #f4f4f4;
-      padding: 20px;
-      color: #333;
-    }
-    h1 {
-      text-align: center;
-    }
-    .data {
-      display: flex;
-      justify-content: space-around;
-      margin: 30px 0;
-      flex-wrap: wrap;
-      gap: 15px;
-    }
-    .data div {
-      background: white;
-      padding: 15px 30px;
-      border-radius: 8px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-      font-size: 1.2rem;
-      min-width: 150px;
-      text-align: center;
-    }
-    canvas {
-      background: white;
-      border-radius: 8px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-      padding: 10px;
-      max-width: 100%;
-    }
+    body { font-family: 'Segoe UI', sans-serif; background: #f4f4f4; padding: 20px; color: #333; }
+    h1 { text-align: center; }
+    .data { display: flex; justify-content: space-around; margin: 30px 0; flex-wrap: wrap; gap: 15px; }
+    .data div { background: white; padding: 15px 30px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); font-size: 1.2rem; min-width: 150px; text-align: center; }
+    canvas { background: white; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); padding: 10px; max-width: 100%; }
+    button { margin-bottom: 20px; padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer; }
   </style>
 </head>
 <body>
@@ -48,6 +22,8 @@
     <div id="soil">Solo: --</div>
     <div id="time">Atualizado: --</div>
   </div>
+
+  <button onclick="toggleMode()">Alternar para Histórico</button>
   <canvas id="chart" height="100"></canvas>
 
   <script>
@@ -57,53 +33,38 @@
       data: {
         labels: [],
         datasets: [
-          {
-            label: 'Temperatura (°C)',
-            borderColor: 'red',
-            data: [],
-            fill: false
-          },
-          {
-            label: 'Umidade (%)',
-            borderColor: 'blue',
-            data: [],
-            fill: false
-          },
-          {
-            label: 'Solo (%)',
-            borderColor: 'green',
-            data: [],
-            fill: false
-          }
+          { label: 'Temperatura (°C)', borderColor: 'red', data: [], fill: false },
+          { label: 'Umidade (%)', borderColor: 'blue', data: [], fill: false },
+          { label: 'Solo (%)', borderColor: 'green', data: [], fill: false }
         ]
       },
       options: {
         responsive: true,
-        scales: {
-          x: {
-            ticks: { autoSkip: true, maxTicksLimit: 10 }
-          },
-          y: {
-            beginAtZero: true
-          }
-        }
+        scales: { y: { beginAtZero: true } }
       }
     });
 
-    async function fetchDataAndUpdateUI() {
-      try {
-        const response = await fetch('/api/data');
-        const data = await response.json();
+    let modoHistorico = false;
 
+    function toggleMode() {
+      modoHistorico = !modoHistorico;
+      document.querySelector("button").innerText = modoHistorico ? "Alternar para Tempo Real" : "Alternar para Histórico";
+      fetchData();
+    }
+
+    async function fetchData() {
+      const endpoint = modoHistorico ? '/api/historico' : '/api/data';
+      try {
+        const response = await fetch(endpoint);
+        const data = await response.json();
         if (!data.length) return;
 
         const latest = data[data.length - 1];
-        document.getElementById('temp').innerText = `Temperatura: ${latest.temperature} °C`;
-        document.getElementById('hum').innerText = `Umidade: ${latest.humidity} %`;
-        document.getElementById('soil').innerText = `Solo: ${latest.soil} %`;
+        document.getElementById('temp').innerText = `Temperatura: ${latest.temperature.toFixed(1)} °C`;
+        document.getElementById('hum').innerText = `Umidade: ${latest.humidity.toFixed(1)} %`;
+        document.getElementById('soil').innerText = `Solo: ${latest.soil.toFixed(1)} %`;
         document.getElementById('time').innerText = `Atualizado: ${new Date(latest.timestamp).toLocaleString()}`;
 
-        // Atualiza o gráfico
         chart.data.labels = data.map(d => new Date(d.timestamp).toLocaleTimeString());
         chart.data.datasets[0].data = data.map(d => d.temperature);
         chart.data.datasets[1].data = data.map(d => d.humidity);
@@ -114,8 +75,8 @@
       }
     }
 
-    fetchDataAndUpdateUI();
-    setInterval(fetchDataAndUpdateUI, 5000);
+    fetchData();
+    setInterval(fetchData, 10000);
   </script>
 </body>
 </html>
