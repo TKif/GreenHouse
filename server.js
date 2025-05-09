@@ -31,12 +31,10 @@ app.post('/api/data', (req, res) => {
   const now = new Date();
   const newEntry = { temperature, humidity, soil, timestamp: now };
 
-  // Adiciona ao sensorData.json
   const rawData = JSON.parse(fs.readFileSync(dataPath));
   rawData.push(newEntry);
   fs.writeFileSync(dataPath, JSON.stringify(rawData, null, 2));
 
-  // Atualiza historico.json
   const historico = JSON.parse(fs.readFileSync(historicoPath));
   const bloco = new Date(now);
   bloco.setMinutes(bloco.getMinutes() < 30 ? 0 : 30, 0, 0);
@@ -59,8 +57,8 @@ app.post('/api/data', (req, res) => {
     blocoAtual.soilSum += soil;
   }
 
-  if (historico.length > 48) {
-    historico.splice(0, historico.length - 48);
+  if (historico.length > 96) {
+    historico.splice(0, historico.length - 96);
   }
 
   fs.writeFileSync(historicoPath, JSON.stringify(historico, null, 2));
