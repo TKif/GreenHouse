@@ -24,7 +24,7 @@
     <div id="time">Atualizado: --</div>
   </div>
 
-  <div style="text-align: center; margin-bottom: 20px;">
+  <div id="controls" style="text-align: center; margin-bottom: 20px;">
     <button onclick="toggleMode()">Alternar para Histórico</button>
     <select id="intervalSelect" onchange="fetchData()" style="margin-left: 10px;">
       <option value="1800">Últimos 30 min</option>
@@ -58,7 +58,7 @@
     function toggleMode() {
       modoHistorico = !modoHistorico;
       document.querySelector("button").innerText = modoHistorico ? "Alternar para Tempo Real" : "Alternar para Histórico";
-      document.getElementById("intervalSelect").disabled = modoHistorico;
+      document.getElementById("intervalSelect").style.display = modoHistorico ? "none" : "inline-block";
       fetchData();
     }
 
