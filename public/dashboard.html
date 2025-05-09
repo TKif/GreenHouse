@@ -11,7 +11,8 @@
     .data { display: flex; justify-content: space-around; margin: 30px 0; flex-wrap: wrap; gap: 15px; }
     .data div { background: white; padding: 15px 30px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); font-size: 1.2rem; min-width: 150px; text-align: center; }
     canvas { background: white; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); padding: 10px; max-width: 100%; }
-    button { margin-bottom: 20px; padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer; }
+    button, select { margin-bottom: 10px; padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer; }
+    select { background: #ffffff; color: #333; border: 1px solid #ccc; }
   </style>
 </head>
 <body>
@@ -23,7 +24,15 @@
     <div id="time">Atualizado: --</div>
   </div>
 
-  <button onclick="toggleMode()">Alternar para Histórico</button>
+  <div style="text-align: center; margin-bottom: 20px;">
+    <button onclick="toggleMode()">Alternar para Histórico</button>
+    <select id="intervalSelect" onchange="fetchData()" style="margin-left: 10px;">
+      <option value="1800">Últimos 30 min</option>
+      <option value="3600">Última 1h</option>
+      <option value="10800">Últimas 3h</option>
+    </select>
+  </div>
+
   <canvas id="chart" height="100"></canvas>
 
   <script>
@@ -49,26 +58,35 @@
     function toggleMode() {
       modoHistorico = !modoHistorico;
       document.querySelector("button").innerText = modoHistorico ? "Alternar para Tempo Real" : "Alternar para Histórico";
+      document.getElementById("intervalSelect").disabled = modoHistorico;
       fetchData();
     }
 
     async function fetchData() {
       const endpoint = modoHistorico ? '/api/historico' : '/api/data';
+      const interval = parseInt(document.getElementById('intervalSelect').value || '1800');
+
       try {
         const response = await fetch(endpoint);
         const data = await response.json();
         if (!data.length) return;
 
-        const latest = data[data.length - 1];
+        let filtered = data;
+        if (!modoHistorico) {
+          const cutoff = new Date().getTime() - interval * 1000;
+          filtered = data.filter(d => new Date(d.timestamp).getTime() >= cutoff);
+        }
+
+        const latest = filtered[filtered.length - 1];
         document.getElementById('temp').innerText = `Temperatura: ${latest.temperature.toFixed(1)} °C`;
         document.getElementById('hum').innerText = `Umidade: ${latest.humidity.toFixed(1)} %`;
         document.getElementById('soil').innerText = `Solo: ${latest.soil.toFixed(1)} %`;
         document.getElementById('time').innerText = `Atualizado: ${new Date(latest.timestamp).toLocaleString()}`;
 
-        chart.data.labels = data.map(d => new Date(d.timestamp).toLocaleTimeString());
-        chart.data.datasets[0].data = data.map(d => d.temperature);
-        chart.data.datasets[1].data = data.map(d => d.humidity);
-        chart.data.datasets[2].data = data.map(d => d.soil);
+        chart.data.labels = filtered.map(d => new Date(d.timestamp).toLocaleTimeString());
+        chart.data.datasets[0].data = filtered.map(d => d.temperature);
+        chart.data.datasets[1].data = filtered.map(d => d.humidity);
+        chart.data.datasets[2].data = filtered.map(d => d.soil);
         chart.update();
       } catch (err) {
         console.error('Erro ao carregar dados:', err);
