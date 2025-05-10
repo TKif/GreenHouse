@@ -6,31 +6,94 @@
   <title>Dashboard da Estufa</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    body { font-family: 'Segoe UI', sans-serif; background: #f4f4f4; padding: 20px; color: #333; }
+    :root {
+      --bg: #121212;
+      --text: #e0e0e0;
+      --card-bg: #1e1e1e;
+      --button-bg: #4CAF50;
+      --button-text: #fff;
+      --canvas-bg: #1a1a1a;
+    }
+
+    body.light {
+      --bg: #f4f4f4;
+      --text: #333;
+      --card-bg: #fff;
+      --button-bg: #4CAF50;
+      --button-text: #fff;
+      --canvas-bg: #fff;
+    }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 20px;
+      transition: background 0.3s, color 0.3s;
+    }
+
     h1 { text-align: center; }
-    .data { display: flex; justify-content: space-around; margin: 30px 0; flex-wrap: wrap; gap: 15px; }
-    .data div { background: white; padding: 15px 30px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); font-size: 1.2rem; min-width: 150px; text-align: center; }
-    canvas { background: white; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); padding: 10px; max-width: 100%; }
-    button, select { margin-bottom: 10px; padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer; }
-    select { background: #ffffff; color: #333; border: 1px solid #ccc; }
+
+    .data {
+      display: flex;
+      justify-content: space-around;
+      margin: 30px 0;
+      flex-wrap: wrap;
+      gap: 15px;
+    }
+
+    .data div {
+      background: var(--card-bg);
+      padding: 15px 30px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.2);
+      font-size: 1.2rem;
+      min-width: 150px;
+      text-align: center;
+    }
+
+    canvas {
+      background: var(--canvas-bg);
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.3);
+      padding: 10px;
+      max-width: 100%;
+    }
+
+    button, select {
+      margin-bottom: 10px;
+      padding: 10px 20px;
+      background: var(--button-bg);
+      color: var(--button-text);
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    select {
+      background: #ffffff;
+      color: #333;
+      border: 1px solid #ccc;
+    }
   </style>
 </head>
 <body>
   <h1>Dashboard da Estufa</h1>
-  <div class="data">
-    <div id="temp">Temperatura: --</div>
-    <div id="hum">Umidade: --</div>
-    <div id="soil">Solo: --</div>
-    <div id="time">Atualizado: --</div>
-  </div>
-
-  <div id="controls" style="text-align: center; margin-bottom: 20px;">
-    <button onclick="toggleMode()">Alternar para Histórico</button>
+  <div style="text-align: center; margin-bottom: 10px;">
+    <button onclick="toggleMode()" id="modeBtn">Alternar para Histórico</button>
+    <button onclick="toggleTheme()" id="themeToggle">Tema Claro</button>
     <select id="intervalSelect" onchange="fetchData()" style="margin-left: 10px;">
       <option value="1800">Últimos 30 min</option>
       <option value="3600">Última 1h</option>
       <option value="10800">Últimas 3h</option>
     </select>
+  </div>
+
+  <div class="data">
+    <div id="temp">Temperatura: --</div>
+    <div id="hum">Umidade: --</div>
+    <div id="soil">Solo: --</div>
+    <div id="time">Atualizado: --</div>
   </div>
 
   <canvas id="chart" height="100"></canvas>
@@ -57,7 +120,7 @@
 
     function toggleMode() {
       modoHistorico = !modoHistorico;
-      document.querySelector("button").innerText = modoHistorico ? "Alternar para Tempo Real" : "Alternar para Histórico";
+      document.getElementById("modeBtn").innerText = modoHistorico ? "Alternar para Tempo Real" : "Alternar para Histórico";
       document.getElementById("intervalSelect").style.display = modoHistorico ? "none" : "inline-block";
       fetchData();
     }
@@ -93,6 +156,22 @@
       }
     }
 
+    function toggleTheme() {
+      const body = document.body;
+      const isLight = body.classList.toggle('light');
+      document.getElementById('themeToggle').innerText = isLight ? 'Tema Escuro' : 'Tema Claro';
+      localStorage.setItem('theme', isLight ? 'light' : 'dark');
+    }
+
+    function loadTheme() {
+      const theme = localStorage.getItem('theme');
+      if (theme === 'light') {
+        document.body.classList.add('light');
+        document.getElementById('themeToggle').innerText = 'Tema Escuro';
+      }
+    }
+
+    loadTheme();
     fetchData();
     setInterval(fetchData, 10000);
   </script>
