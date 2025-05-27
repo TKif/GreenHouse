@@ -177,3 +177,121 @@
   </script>
 </body>
 </html>
+
+<div class="history-section">
+  <h2>Histórico de Ativação dos Atuadores</h2>
+  <div class="controls">
+    <select id="actuatorFilter">
+      <option value="">Todos</option>
+      <option value="Ventilação">Ventilação</option>
+      <option value="Irrigação">Irrigação</option>
+      <option value="Iluminação">Iluminação</option>
+    </select>
+    <input type="number" id="historyLimit" min="1" max="1000" value="50">
+    <button onclick="loadActuatorHistory()">Carregar</button>
+  </div>
+  
+  <table id="actuatorHistoryTable">
+    <thead>
+      <tr>
+        <th>Data/Hora</th>
+        <th>Atuador</th>
+        <th>Ação</th>
+        <th>Motivo</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<script>
+async function loadActuatorHistory() {
+  const actuator = document.getElementById('actuatorFilter').value;
+  const limit = document.getElementById('historyLimit').value;
+  
+  let url = '/api/history?limit=' + limit;
+  if (actuator) url += '&actuator=' + encodeURIComponent(actuator);
+  
+  try {
+    const response = await fetch(url);
+    const history = await response.json();
+    renderHistoryTable(history);
+  } catch (err) {
+    console.error('Erro ao carregar histórico:', err);
+  }
+}
+
+function renderHistoryTable(history) {
+  const tbody = document.querySelector('#actuatorHistoryTable tbody');
+  tbody.innerHTML = '';
+  
+  history.forEach(entry => {
+    const row = document.createElement('tr');
+    
+    const timeCell = document.createElement('td');
+    timeCell.textContent = new Date(entry.timestamp).toLocaleString();
+    row.appendChild(timeCell);
+    
+    const actuatorCell = document.createElement('td');
+    actuatorCell.textContent = entry.actuator;
+    row.appendChild(actuatorCell);
+    
+    const actionCell = document.createElement('td');
+    actionCell.textContent = entry.action;
+    actionCell.className = entry.action === 'ON' ? 'action-on' : 'action-off';
+    row.appendChild(actionCell);
+    
+    const reasonCell = document.createElement('td');
+    reasonCell.textContent = entry.reason;
+    row.appendChild(reasonCell);
+    
+    tbody.appendChild(row);
+  });
+}
+
+// Carrega histórico ao abrir a página
+document.addEventListener('DOMContentLoaded', loadActuatorHistory);
+</script>
+
+<style>
+.history-section {
+  margin-top: 30px;
+  background: var(--card-bg);
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+
+#actuatorHistoryTable {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 15px;
+}
+
+#actuatorHistoryTable th, #actuatorHistoryTable td {
+  padding: 10px;
+  border: 1px solid #444;
+  text-align: left;
+}
+
+#actuatorHistoryTable th {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.action-on { color: #4CAF50; font-weight: bold; }
+.action-off { color: #f44336; font-weight: bold; }
+
+.controls {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+  align-items: center;
+}
+
+.controls select, .controls input {
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+}
+</style>
