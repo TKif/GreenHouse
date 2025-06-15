@@ -211,6 +211,39 @@ function aggregateData(data) {
   }));
 }
 
+
+// Controle manual dos atuadores
+let actuatorState = {
+  vent: false,
+  irrig: false,
+  heat: false
+};
+
+app.post('/api/actuator', (req, res) => {
+  const { actuator, action } = req.body;
+
+  if (!['vent', 'irrig', 'heat'].includes(actuator) ||
+      !['on', 'off', 'pulse'].includes(action)) {
+    return res.status(400).json({ error: 'Parâmetros inválidos' });
+  }
+
+  actuatorState[actuator] = action === 'on';
+
+  if (action === 'pulse' && actuator === 'irrig') {
+    actuatorState.irrig = true;
+    setTimeout(() => {
+      actuatorState.irrig = false;
+    }, 5000);
+  }
+
+  res.json({ success: true, actuatorState });
+});
+
+app.get('/api/actuator', (req, res) => {
+  res.json(actuatorState);
+});
+
+
 // Inicia o servidor
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Servidor rodando em http://0.0.0.0:${PORT}`);
