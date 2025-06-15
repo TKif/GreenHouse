@@ -4,9 +4,72 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard Estufa Inteligente</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/luxon@3.0.1"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.2.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js">
+async function sendActuatorCommand(actuator, action) {
+  try {
+    const response = await fetch('/api/actuator', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ actuator, action })
+    });
+
+    const data = await response.json();
+    if (response.ok) {
+      alert(`Comando enviado: ${actuator} - ${action}`);
+    } else {
+      alert(`Erro: ${data.error}`);
+    }
+  } catch (error) {
+    console.error('Erro ao enviar comando:', error);
+    alert('Erro na comunicação com o servidor');
+  }
+}
+
+</script>
+  <script src="https://cdn.jsdelivr.net/npm/luxon@3.0.1">
+async function sendActuatorCommand(actuator, action) {
+  try {
+    const response = await fetch('/api/actuator', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ actuator, action })
+    });
+
+    const data = await response.json();
+    if (response.ok) {
+      alert(`Comando enviado: ${actuator} - ${action}`);
+    } else {
+      alert(`Erro: ${data.error}`);
+    }
+  } catch (error) {
+    console.error('Erro ao enviar comando:', error);
+    alert('Erro na comunicação com o servidor');
+  }
+}
+
+</script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.2.0">
+async function sendActuatorCommand(actuator, action) {
+  try {
+    const response = await fetch('/api/actuator', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ actuator, action })
+    });
+
+    const data = await response.json();
+    if (response.ok) {
+      alert(`Comando enviado: ${actuator} - ${action}`);
+    } else {
+      alert(`Erro: ${data.error}`);
+    }
+  } catch (error) {
+    console.error('Erro ao enviar comando:', error);
+    alert('Erro na comunicação com o servidor');
+  }
+}
+
+</script>
   <style>
     :root {
       --bg: #121212;
@@ -267,6 +330,17 @@
         </div>
       </div>
       <button id="saveParams">Salvar Parâmetros</button>
+<h3>Controle Manual</h3>
+<div class="controls">
+  <button onclick="sendActuatorCommand('vent', 'on')">Ligar Ventilação</button>
+  <button onclick="sendActuatorCommand('vent', 'off')">Desligar Ventilação</button>
+  
+  <button onclick="sendActuatorCommand('irrig', 'pulse')">Irrigar (5s)</button>
+  
+  <button onclick="sendActuatorCommand('heat', 'on')">Ligar Aquecimento</button>
+  <button onclick="sendActuatorCommand('heat', 'off')">Desligar Aquecimento</button>
+</div>
+
     </div>
     
     <div class="panel">
@@ -595,6 +669,27 @@
     }
     
     init();
-  </script>
+  
+async function sendActuatorCommand(actuator, action) {
+  try {
+    const response = await fetch('/api/actuator', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ actuator, action })
+    });
+
+    const data = await response.json();
+    if (response.ok) {
+      alert(`Comando enviado: ${actuator} - ${action}`);
+    } else {
+      alert(`Erro: ${data.error}`);
+    }
+  } catch (error) {
+    console.error('Erro ao enviar comando:', error);
+    alert('Erro na comunicação com o servidor');
+  }
+}
+
+</script>
 </body>
 </html>
