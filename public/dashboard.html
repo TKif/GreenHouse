@@ -330,6 +330,14 @@ async function sendActuatorCommand(actuator, action) {
         </div>
       </div>
       <button id="saveParams">Salvar Parâmetros</button>
+<h3>Controle Manual (tempo real)</h3>
+  <div class="controls">
+    <button onclick="sendActuatorCommandWS('vent','on')">Vent ON</button>
+    <button onclick="sendActuatorCommandWS('vent','off')">Vent OFF</button>
+    <button onclick="sendActuatorCommandWS('irrig','pulse')">Irrigar 5s</button>
+    <button onclick="sendActuatorCommandWS('heat','on')">Heat ON</button>
+    <button onclick="sendActuatorCommandWS('heat','off')">Heat OFF</button>
+  </div>
 <h3>Controle Manual</h3>
 <div class="controls">
   <button onclick="sendActuatorCommand('vent', 'on')">Ligar Ventilação</button>
