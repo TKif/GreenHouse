@@ -3,6 +3,8 @@ const fs = require('fs');
 const path = require('path');
 const bodyParser = require('body-parser');
 const cors = require('cors');
+const http = require('http');
+const WebSocket = require('ws');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -243,8 +245,54 @@ app.get('/api/actuator', (req, res) => {
   res.json(actuatorState);
 });
 
+// Cria o HTTP server a partir do Express
+const server = http.createServer(app);
 
-// Inicia o servidor
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Servidor rodando em http://0.0.0.0:${PORT}`);
+// Cria o WebSocket server
+const wss = new WebSocket.Server({ server });
+
+// Lista de ESP32s conectados
+const espClients = [];
+
+// Quando um novo socket conectar...
+wss.on('connection', ws => {
+  ws.on('message', raw => {
+    let data;
+    try {
+      data = JSON.parse(raw);
+    } catch (e) {
+      console.error('WS: payload inválido', raw);
+      return;
+    }
+
+    // Registro inicial do ESP32
+    if (data.type === 'register' && data.role === 'esp32') {
+      espClients.push(ws);
+      console.log('ESP32 registrado:', ws._socket.remoteAddress);
+      return;
+    }
+
+    // Comando vindo do dashboard
+    if (data.type === 'command') {
+      // Reenvia para *todos* os ESP32s conectados
+      espClients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(raw);
+        }
+      });
+      console.log('Encaminhando comando para ESP32:', data);
+      return;
+    }
+  });
+
+  // Limpeza ao desconectar
+  ws.on('close', () => {
+    const idx = espClients.indexOf(ws);
+    if (idx !== -1) espClients.splice(idx, 1);
+  });
+});
+
+// Finalmente, troca o listen do Express pelo do HTTP + WS
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Servidor (HTTP+WS) rodando em http://0.0.0.0:${PORT}`);
 });
