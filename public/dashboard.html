@@ -338,16 +338,6 @@ async function sendActuatorCommand(actuator, action) {
     <button onclick="sendActuatorCommandWS('heat','on')">Heat ON</button>
     <button onclick="sendActuatorCommandWS('heat','off')">Heat OFF</button>
   </div>
-<h3>Controle Manual</h3>
-<div class="controls">
-  <button onclick="sendActuatorCommand('vent', 'on')">Ligar Ventilação</button>
-  <button onclick="sendActuatorCommand('vent', 'off')">Desligar Ventilação</button>
-  
-  <button onclick="sendActuatorCommand('irrig', 'pulse')">Irrigar (5s)</button>
-  
-  <button onclick="sendActuatorCommand('heat', 'on')">Ligar Aquecimento</button>
-  <button onclick="sendActuatorCommand('heat', 'off')">Desligar Aquecimento</button>
-</div>
 
     </div>
     
@@ -698,6 +688,17 @@ async function sendActuatorCommand(actuator, action) {
   }
 }
 
+// conectar ao WebSocket
+const socket = new WebSocket(`ws://${window.location.hostname}:8080`);
+socket.addEventListener('open', () => {
+  socket.send(JSON.stringify({ type: 'register', role: 'dashboard' }));
+});
+
+// função para enviar comandos via WS
+function sendActuatorCommandWS(actuator, action) {
+  socket.send(JSON.stringify({ type: 'command', actuator, action }));
+}
+    
 </script>
 </body>
 </html>
