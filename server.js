@@ -1,10 +1,10 @@
- const express = require('express');
- const http       = require('http');
- const WebSocket  = require('ws');
- const fs         = require('fs');
- const path       = require('path');
- const bodyParser = require('body-parser');
- const cors       = require('cors');
+const express = require('express');
+const fs = require('fs');
+const path = require('path');
+const bodyParser = require('body-parser');
+const cors = require('cors');
+const http = require('http');
+const WebSocket = require('ws');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
