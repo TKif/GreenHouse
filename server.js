@@ -1,10 +1,10 @@
-const express = require('express');
-const fs = require('fs');
-const path = require('path');
-const bodyParser = require('body-parser');
-const cors = require('cors');
-const http = require('http');
-const WebSocket = require('ws');
+ const express = require('express');
+ const http       = require('http');
+ const WebSocket  = require('ws');
+ const fs         = require('fs');
+ const path       = require('path');
+ const bodyParser = require('body-parser');
+ const cors       = require('cors');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -292,7 +292,47 @@ wss.on('connection', ws => {
   });
 });
 
-// Finalmente, troca o listen do Express pelo do HTTP + WS
+// 1) Cria o servidor HTTP “puro” a partir do Express
+const server = http.createServer(app);
+
+// 2) Anexa o WebSocket Server a esse mesmo HTTP server
+const wss = new WebSocket.Server({ server });
+
+// 3) Guarda quais conexões são ESP32 para mandar comandos só a elas
+const espClients = [];
+
+// 4) Toda vez que alguém se conecta por WS
+wss.on('connection', ws => {
+  ws.on('message', raw => {
+    let msg;
+    try { msg = JSON.parse(raw); }
+    catch(e) { return; }
+
+    // registro inicial do ESP32
+    if (msg.type === 'register' && msg.role === 'esp32') {
+      espClients.push(ws);
+      console.log('✅ ESP32 registrado:', ws._socket.remoteAddress);
+      return;
+    }
+
+    // comando vindo do dashboard → reenvia para todos os ESP32 registrados
+    if (msg.type === 'command') {
+      espClients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(raw);
+        }
+      });
+      console.log('➡️  Encaminhando comando para ESP32:', msg);
+    }
+  });
+
+  ws.on('close', () => {
+    const idx = espClients.indexOf(ws);
+    if (idx !== -1) espClients.splice(idx, 1);
+  });
+});
+
+// 5) Substitui o app.listen pelo server.listen para HTTP + WS juntos
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Servidor (HTTP+WS) rodando em http://0.0.0.0:${PORT}`);
+  console.log(`🚀 Servidor HTTP+WS rodando em http://0.0.0.0:${PORT}`);
 });
