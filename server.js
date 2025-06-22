@@ -245,52 +245,6 @@ app.get('/api/actuator', (req, res) => {
   res.json(actuatorState);
 });
 
-// Cria o HTTP server a partir do Express
-const server = http.createServer(app);
-
-// Cria o WebSocket server
-const wss = new WebSocket.Server({ server });
-
-// Lista de ESP32s conectados
-const espClients = [];
-
-// Quando um novo socket conectar...
-wss.on('connection', ws => {
-  ws.on('message', raw => {
-    let data;
-    try {
-      data = JSON.parse(raw);
-    } catch (e) {
-      console.error('WS: payload inválido', raw);
-      return;
-    }
-
-    // Registro inicial do ESP32
-    if (data.type === 'register' && data.role === 'esp32') {
-      espClients.push(ws);
-      console.log('ESP32 registrado:', ws._socket.remoteAddress);
-      return;
-    }
-
-    // Comando vindo do dashboard
-    if (data.type === 'command') {
-      // Reenvia para *todos* os ESP32s conectados
-      espClients.forEach(client => {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send(raw);
-        }
-      });
-      console.log('Encaminhando comando para ESP32:', data);
-      return;
-    }
-  });
-
-  // Limpeza ao desconectar
-  ws.on('close', () => {
-    const idx = espClients.indexOf(ws);
-    if (idx !== -1) espClients.splice(idx, 1);
-  });
-});
 
 // 1) Cria o servidor HTTP “puro” a partir do Express
 const server = http.createServer(app);
