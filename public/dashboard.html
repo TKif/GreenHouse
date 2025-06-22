@@ -1,16 +1,14 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard Estufa Inteligente</title>
 
-  <!-- 1) Bibliotecas externas -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/luxon@3.0.1"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.2.0"></script>
 
-  <!-- 2) Todo o seu CSS -->
   <style>
     :root {
       --bg: #121212;
@@ -166,7 +164,6 @@
   <div class="dashboard">
     <h1>Dashboard da Estufa Inteligente</h1>
 
-    <!-- CONTROLES GERAIS -->
     <div class="controls">
       <button id="themeToggle">Alternar para Tema Claro</button>
       <button id="refreshBtn">Atualizar Dados</button>
@@ -182,7 +179,6 @@
       </select>
     </div>
 
-    <!-- DADOS DOS SENSORES -->
     <div class="panel">
       <h2>Dados dos Sensores</h2>
       <div class="data-cards">
@@ -211,7 +207,6 @@
       </div>
     </div>
 
-    <!-- PARÂMETROS DE CONTROLE -->
     <div class="panel">
       <h2>Controle dos Atuadores</h2>
       <div class="param-control">
@@ -219,6 +214,10 @@
           <div class="param-item">
             <label for="tempThreshold">Temperatura Máxima:</label>
             <input type="number" id="tempThreshold" step="0.1"> °C
+          </div>
+          <div class="param-item">
+            <label for="minTempThreshold">Temperatura Mínima:</label>
+            <input type="number" id="minTempThreshold" step="0.1"> °C
           </div>
           <div class="param-item">
             <label for="humThreshold">Umidade Máxima:</label>
@@ -242,22 +241,24 @@
             <span>Status Irrigação:</span>
             <span id="irrigStatus" class="status-off">OFF</span>
           </div>
+          <div class="param-item">
+            <span>Status Iluminação:</span>
+            <span id="heatStatus" class="status-off">OFF</span>
+          </div>
         </div>
       </div>
       <button id="saveParams">Salvar Parâmetros</button>
 
-      <!-- CONTROLE MANUAL via WebSocket -->
       <h3>Controle Manual (tempo real)</h3>
       <div class="controls">
         <button onclick="sendActuatorCommandWS('vent','on')">Vent ON</button>
         <button onclick="sendActuatorCommandWS('vent','off')">Vent OFF</button>
-        <button onclick="sendActuatorCommandWS('irrig','pulse')">Irrigar 5s</button>
-        <button onclick="sendActuatorCommandWS('heat','on')">Heat ON</button>
-        <button onclick="sendActuatorCommandWS('heat','off')">Heat OFF</button>
+        <button onclick="sendActuatorCommandWS('irrig','pulse1s')">Irrigar 1s</button>
+        <button onclick="sendActuatorCommandWS('heat','on')">Iluminação ON</button>
+        <button onclick="sendActuatorCommandWS('heat','off')">Iluminação OFF</button>
       </div>
     </div>
 
-    <!-- HISTÓRICO -->
     <div class="panel">
       <h2>Histórico de Ativações</h2>
       <div class="controls">
@@ -284,7 +285,6 @@
     </div>
   </div>
 
-  <!-- 3) Definição única de sendActuatorCommand (HTTP POST) -->
   <script>
     async function sendActuatorCommand(actuator, action) {
       try {
@@ -306,7 +306,6 @@
     }
   </script>
 
-  <!-- 4) Script principal (Chart.js, fetchData, init, etc.) -->
   <script>
     const themeToggle = document.getElementById('themeToggle');
     const refreshBtn = document.getElementById('refreshBtn');
@@ -314,7 +313,7 @@
     const dataMode = document.getElementById('dataMode');
     const saveParamsBtn = document.getElementById('saveParams');
     const loadHistoryBtn = document.getElementById('loadHistory');
-    
+
     // Configuração do gráfico
     const ctx = document.getElementById('sensorChart').getContext('2d');
     const chart = new Chart(ctx, {
@@ -409,22 +408,22 @@
     dataMode.addEventListener('change', fetchData);
     saveParamsBtn.addEventListener('click', saveParams);
     loadHistoryBtn.addEventListener('click', loadActuatorHistory);
-    
+
     // Funções principais
     async function fetchData() {
       try {
         const mode = dataMode.value;
         const range = timeRange.value;
         let url = mode === 'historical' ? '/api/historico' : '/api/data';
-        
+
         const response = await fetch(url);
         const data = await response.json();
-        
+
         if (!data || data.length === 0) {
           console.warn('Nenhum dado disponível');
           return;
         }
-        
+
         // Filtra por intervalo de tempo para dados em tempo real
         if (mode === 'realtime') {
           const cutoff = Date.now() - (range * 1000);
@@ -432,7 +431,7 @@
         } else {
           currentData = data;
         }
-        
+
         updateCurrentReadings();
         updateChart();
         await fetchControlParams();
@@ -440,20 +439,20 @@
         console.error('Erro ao buscar dados:', error);
       }
     }
-    
+
     function updateCurrentReadings() {
       if (currentData.length === 0) return;
-      
+
       const latest = currentData[currentData.length - 1];
       document.getElementById('currentTemp').textContent = latest.temperature.toFixed(1);
       document.getElementById('currentHum').textContent = latest.humidity.toFixed(1);
       document.getElementById('currentSoil').textContent = latest.soil.toFixed(1);
-      
+
       const updateTime = new Date(latest.timestamp);
       document.getElementById('lastUpdate').textContent = updateTime.toLocaleString();
       lastUpdate = updateTime;
     }
-    
+
     function updateChart() {
       chart.data.labels = currentData.map(d => new Date(d.timestamp));
       chart.data.datasets[0].data = currentData.map(d => ({
@@ -470,43 +469,46 @@
       }));
       chart.update();
     }
-    
+
     async function fetchControlParams() {
       try {
         const response = await fetch('/api/params');
         const params = await response.json();
         currentParams = params;
-        
+
         document.getElementById('tempThreshold').value = params.tempThreshold;
+        document.getElementById('minTempThreshold').value = params.minTempThreshold;
         document.getElementById('humThreshold').value = params.humThreshold;
         document.getElementById('soilThreshold').value = params.soilThreshold;
         document.getElementById('autoControl').checked = params.autoControl;
-        
+
         // Simulação - na prática viria do servidor ou WebSocket
         updateActuatorStatus();
       } catch (error) {
         console.error('Erro ao buscar parâmetros:', error);
       }
     }
-    
+
     async function saveParams() {
       const params = {
         tempThreshold: parseFloat(document.getElementById('tempThreshold').value),
+        minTempThreshold: parseFloat(document.getElementById('minTempThreshold').value),
         humThreshold: parseFloat(document.getElementById('humThreshold').value),
         soilThreshold: parseInt(document.getElementById('soilThreshold').value),
         autoControl: document.getElementById('autoControl').checked
       };
-      
+
       try {
         const response = await fetch('/api/params', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(params)
         });
-        
+
         if (response.ok) {
           alert('Parâmetros atualizados com sucesso!');
           currentParams = params;
+          updateActuatorStatus(); // Update status immediately after saving params
         } else {
           alert('Erro ao salvar parâmetros');
         }
@@ -515,14 +517,14 @@
         alert('Erro na comunicação com o servidor');
       }
     }
-    
+
     async function loadActuatorHistory() {
       const actuator = document.getElementById('actuatorFilter').value;
       const limit = document.getElementById('historyLimit').value;
-      
+
       let url = `/api/history?limit=${limit}`;
       if (actuator) url += `&actuator=${encodeURIComponent(actuator)}`;
-      
+
       try {
         const response = await fetch(url);
         actuatorHistory = await response.json();
@@ -531,61 +533,73 @@
         console.error('Erro ao carregar histórico:', error);
       }
     }
-    
+
     function renderActuatorHistory() {
       const tbody = document.getElementById('historyTableBody');
       tbody.innerHTML = '';
-      
+
       actuatorHistory.forEach(entry => {
         const row = document.createElement('tr');
-        
+
         const timeCell = document.createElement('td');
         timeCell.textContent = new Date(entry.timestamp).toLocaleString();
         row.appendChild(timeCell);
-        
+
         const actuatorCell = document.createElement('td');
         actuatorCell.textContent = entry.actuator;
         row.appendChild(actuatorCell);
-        
+
         const actionCell = document.createElement('td');
         actionCell.textContent = entry.action;
         actionCell.className = entry.action === 'ON' ? 'status-on' : 'status-off';
         row.appendChild(actionCell);
-        
+
         const reasonCell = document.createElement('td');
         reasonCell.textContent = entry.reason;
         row.appendChild(reasonCell);
-        
+
         tbody.appendChild(row);
       });
     }
-    
+
     function updateActuatorStatus() {
-      // Simulação - na prática viria de atualizações em tempo real
-      const now = new Date();
-      const min = now.getMinutes();
-      
-      // Ventilação liga se temperatura > threshold
-      const ventOn = currentData.length > 0 && 
-        currentData[currentData.length - 1].temperature > currentParams.tempThreshold;
-      
-      // Irrigação liga em horários específicos para demonstração
-      const irrigOn = min >= 0 && min < 5; // Liga nos primeiros 5 minutos de cada hora
-      
+      // Verifica se há dados e se o controle automático está habilitado
+      if (currentData.length === 0 || !currentParams.autoControl) {
+        document.getElementById('ventStatus').textContent = 'OFF';
+        document.getElementById('ventStatus').className = 'status-off';
+        document.getElementById('irrigStatus').textContent = 'OFF';
+        document.getElementById('irrigStatus').className = 'status-off';
+        document.getElementById('heatStatus').textContent = 'OFF';
+        document.getElementById('heatStatus').className = 'status-off';
+        return; // Sai da função se não houver dados ou auto-control desativado
+      }
+
+      const latestTemperature = currentData[currentData.length - 1].temperature;
+      const latestSoil = currentData[currentData.length - 1].soil;
+
+      // Lógica de controle de Ventilação (para resfriar)
+      const ventOn = latestTemperature > currentParams.tempThreshold;
       document.getElementById('ventStatus').textContent = ventOn ? 'ON' : 'OFF';
       document.getElementById('ventStatus').className = ventOn ? 'status-on' : 'status-off';
-      
+
+      // Lógica de controle de Iluminação/Aquecedor (para aquecer)
+      const heatOn = latestTemperature < currentParams.minTempThreshold;
+      document.getElementById('heatStatus').textContent = heatOn ? 'ON' : 'OFF';
+      document.getElementById('heatStatus').className = heatOn ? 'status-on' : 'status-off';
+
+      // Lógica de controle de Irrigação (baseada na umidade do solo)
+      const irrigOn = latestSoil < currentParams.soilThreshold;
       document.getElementById('irrigStatus').textContent = irrigOn ? 'ON' : 'OFF';
       document.getElementById('irrigStatus').className = irrigOn ? 'status-on' : 'status-off';
     }
-    
+
     function toggleTheme() {
       document.body.classList.toggle('light');
       const isLight = document.body.classList.contains('light');
       themeToggle.textContent = isLight ? 'Alternar para Tema Escuro' : 'Alternar para Tema Claro';
       localStorage.setItem('theme', isLight ? 'light' : 'dark');
     }
-    
+
     function loadTheme() {
       const savedTheme = localStorage.getItem('theme');
       if (savedTheme === 'light') {
@@ -593,29 +607,34 @@
         themeToggle.textContent = 'Alternar para Tema Escuro';
       }
     }
-    
+
     // Inicialização
     function init() {
       loadTheme();
-      fetchData();
-      loadActuatorHistory();
-      
-      // Atualiza a cada 30 segundos
+      fetchData(); // Busca dados iniciais e parâmetros
+      loadActuatorHistory(); // Carrega o histórico de atuadores
+
+      // Atualiza os dados a cada 30 segundos
       setInterval(fetchData, 30000);
-      setInterval(updateActuatorStatus, 5000);
+      // Atualiza o status dos atuadores (mesmo se os dados não mudarem, a lógica de auto-controle pode ter mudado)
+      setInterval(updateActuatorStatus, 5000); // Mais frequente para feedback visual
     }
-    
+
     init();
   </script>
 
-  <!-- 5) WebSocket e sendActuatorCommandWS -->
   <script>
     const socket = new WebSocket(`ws://${window.location.hostname}:8080`);
     socket.addEventListener('open', () => {
       socket.send(JSON.stringify({ type: 'register', role: 'dashboard' }));
     });
+    // Função para enviar comandos de atuador via WebSocket
     function sendActuatorCommandWS(actuator, action) {
-      socket.send(JSON.stringify({ type: 'command', actuator, action }));
+      // O ESP32 pode usar 'heat' para iluminação
+      const payload = { type: 'command', actuator, action };
+      socket.send(JSON.stringify(payload));
+      console.log('Comando WS enviado:', payload);
+      // Opcional: feedback visual imediato ou esperar confirmação do ESP32
     }
   </script>
 </body>
