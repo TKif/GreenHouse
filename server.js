@@ -13,7 +13,6 @@ const PORT = process.env.PORT || 8080;
 app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static('public')); // Servir arquivos estáticos da pasta 'public'
-                                   // Certifique-se que o dashboard.html esteja aqui ou em uma pasta acessível
 
 // Caminhos dos arquivos de dados
 const dataPath = path.join(__dirname, 'data', 'sensorData.json');
@@ -57,7 +56,6 @@ function initializeFile(filePath, defaultValue) {
 
 // Inicializa arquivos de dados com seus valores padrão
 initializeFile(dataPath, []);
-// MODIFICADO: minTempThreshold agora faz parte da inicialização
 initializeFile(paramsPath, {
   tempThreshold: 25.0,
   minTempThreshold: 18.0, // Novo parâmetro de temperatura mínima
@@ -160,8 +158,6 @@ function aggregateDataForChart(data) {
 }
 
 // Estado atual dos atuadores (simulado no servidor) - PODE SER REMOVIDO SE USAR WS STATE DIRETO
-// Em um sistema real, o ESP32 enviaria o estado atual. Esta variável é mais para o servidor
-// ter uma referência rápida, mas o estado real é no ESP32.
 let actuatorState = {
   vent: false,
   irrig: false,
@@ -169,7 +165,6 @@ let actuatorState = {
 };
 
 // Funçao para logar ações dos atuadores no arquivo historyPath
-// Esta função é o que a rota /api/actuator/log e o WebSocket usam
 function logActuatorAction(actuator, action, reason) {
   const history = readJsonFile(historyPath, []); // Garante que o arquivo é lido/criado
   history.push({
@@ -185,6 +180,28 @@ function logActuatorAction(actuator, action, reason) {
   }
   writeJsonFile(historyPath, history);
   console.log('Log de Atuador salvo no histórico:', { actuator, action, reason });
+}
+
+// --- FUNÇÃO AUXILIAR PARA CONVERTER JSON PARA CSV ---
+function jsonToCsv(jsonArray, fields) {
+    if (!jsonArray || jsonArray.length === 0) {
+        return fields.join(',') + '\n'; // Apenas o cabeçalho se não houver dados
+    }
+
+    const header = fields.join(',');
+    const rows = jsonArray.map(obj => fields.map(field => {
+        let value = obj[field];
+        if (value === null || typeof value === 'undefined') {
+            value = '';
+        }
+        // Envolve o valor em aspas se contiver vírgulas ou aspas duplas
+        if (typeof value === 'string' && (value.includes(',') || value.includes('"') || value.includes('\n'))) {
+            return `"${value.replace(/"/g, '""')}"`;
+        }
+        return value;
+    }).join(','));
+
+    return [header, ...rows].join('\n');
 }
 
 
@@ -216,13 +233,11 @@ app.post('/api/data', (req, res) => {
 
 // Rota para o dashboard buscar os dados mais recentes dos sensores (GET)
 app.get('/api/data', (req, res) => {
-  // Retorna os dados crus mais recentes para o gráfico em tempo real
   const currentData = readJsonFile(dataPath, []);
   res.json(currentData);
 });
 
 // Rota para o dashboard buscar dados históricos agregados
-// O dashboard.html faz o filtro de tempo
 app.get('/api/historico', (req, res) => {
   const historicalData = readJsonFile(dataPath, []);
   res.json(historicalData);
@@ -234,7 +249,6 @@ app.get('/api/params', (req, res) => {
   res.json(params);
 });
 
-// MODIFICADO: Salvar params incluindo minTempThreshold
 app.post('/api/params', (req, res) => {
   const { tempThreshold, minTempThreshold, humThreshold, soilThreshold, autoControl } = req.body;
 
@@ -260,23 +274,19 @@ app.post('/api/params', (req, res) => {
   });
 });
 
-// NOVO: Rota para receber logs de atuadores do ESP32 via HTTP POST
-// Esta é a rota que o ESP32 usa com sendActuatorLog
+// Rota para receber logs de atuadores do ESP32 via HTTP POST
 app.post('/api/actuator/log', (req, res) => {
   const { actuator, action, reason } = req.body;
   if (!actuator || !action || !reason) {
     return res.status(400).json({ error: 'Dados do log inválidos' });
   }
 
-  // A função logActuatorAction já adiciona o timestamp e salva no arquivo
   logActuatorAction(actuator, action, reason);
 
   res.status(200).json({ message: 'Log de atuador recebido e salvo com sucesso!' });
 });
 
-
 // Rota para o dashboard controlar atuadores manualmente (HTTP POST - Alternativa ao WebSocket)
-// Esta rota é menos utilizada agora que temos o WebSocket para comandos em tempo real
 app.post('/api/actuator', (req, res) => {
   const { actuator, action } = req.body;
 
@@ -284,24 +294,21 @@ app.post('/api/actuator', (req, res) => {
     return res.status(400).json({ error: 'Comando inválido' });
   }
 
-  // Simula o controle do atuador (estado local do servidor)
   if (action === 'on') {
     actuatorState[actuator] = true;
-    logActuatorAction(actuator, 'ON', 'Manual (Dashboard HTTP)'); // Loga a ação
+    logActuatorAction(actuator, 'ON', 'Manual (Dashboard HTTP)');
   } else if (action === 'off') {
     actuatorState[actuator] = false;
-    logActuatorAction(actuator, 'OFF', 'Manual (Dashboard HTTP)'); // Loga a ação
+    logActuatorAction(actuator, 'OFF', 'Manual (Dashboard HTTP)');
   } else if (action === 'pulse1s' && actuator === 'irrig') {
-    // Para irrigação de 1s, liga e desliga após um tempo
-    actuatorState.irrig = true; // Estado local do servidor
-    logActuatorAction('irrig', 'ON', 'Pulso 1s (Dashboard HTTP)'); // Loga a ação de ligar
+    actuatorState.irrig = true;
+    logActuatorAction('irrig', 'ON', 'Pulso 1s (Dashboard HTTP)');
     setTimeout(() => {
-      actuatorState.irrig = false; // Estado local do servidor
-      logActuatorAction('irrig', 'OFF', 'Pulso 1s (Dashboard HTTP - fim)'); // Loga a ação de desligar
+      actuatorState.irrig = false;
+      logActuatorAction('irrig', 'OFF', 'Pulso 1s (Dashboard HTTP - fim)');
     }, 1000); // 1 segundo
   }
 
-  // Envia o comando para os ESP32 via WebSocket para que eles realmente atuem
   espClients.forEach(client => {
     if (client.readyState === WebSocket.OPEN) {
       client.send(JSON.stringify({ type: 'command', actuator, action }));
@@ -318,13 +325,11 @@ app.get('/api/actuator', (req, res) => {
 
 // Rota para o dashboard buscar o histórico de ativações dos atuadores
 app.get('/api/history', (req, res) => {
-  let history = readJsonFile(historyPath, []); // Lê do arquivo correto
+  let history = readJsonFile(historyPath, []);
   const { limit, actuator } = req.query;
 
   if (actuator) {
-    // Filtra pelo nome amigável usado em logActuatorAction
     history = history.filter(entry => {
-      // Comparação case-insensitive para maior robustez
       const friendlyName = entry.actuator.toLowerCase();
       const requestedActuator = actuator.toLowerCase();
       return friendlyName === requestedActuator ||
@@ -337,6 +342,28 @@ app.get('/api/history', (req, res) => {
     history = history.slice(Math.max(history.length - parseInt(limit), 0));
   }
   res.json(history);
+});
+
+// --- NOVAS ROTAS DE EXPORTAÇÃO CSV ---
+
+app.get('/api/export/sensor-data', (req, res) => {
+    const sensorData = readJsonFile(dataPath); // Lê todos os dados de sensores
+    const fields = ['timestamp', 'temperature', 'humidity', 'soil'];
+    const csv = jsonToCsv(sensorData, fields);
+
+    res.header('Content-Type', 'text/csv');
+    res.attachment('sensor_data.csv'); // Define o nome do arquivo para download
+    res.send(csv);
+});
+
+app.get('/api/export/actuator-history', (req, res) => {
+    const actuatorHistory = readJsonFile(historyPath); // Lê todo o histórico de atuadores
+    const fields = ['timestamp', 'actuator', 'action', 'reason'];
+    const csv = jsonToCsv(actuatorHistory, fields);
+
+    res.header('Content-Type', 'text/csv');
+    res.attachment('actuator_history.csv'); // Define o nome do arquivo para download
+    res.send(csv);
 });
 
 
@@ -365,8 +392,6 @@ wss.on('connection', ws => {
         const currentParams = readJsonFile(paramsPath, {});
         ws.send(JSON.stringify({ type: 'paramsUpdate', params: currentParams }));
       } else if (msg.role === 'dashboard') {
-        // O dashboard se registra, mas não precisamos de uma lista específica para ele
-        // pois ele envia comandos para os ESP32
         console.log('🔗 Dashboard conectado:', ws._socket.remoteAddress);
       }
       return;
@@ -376,10 +401,8 @@ wss.on('connection', ws => {
     if (msg.type === 'command') {
       const { actuator, action } = msg;
 
-      // Loga a ação do atuador no histórico (agora usando a função `logActuatorAction`)
       logActuatorAction(actuator, action, 'Manual (Dashboard WebSocket)');
 
-      // O servidor repassa o comando para todos os ESP32 conectados
       espClients.forEach(client => {
         if (client.readyState === WebSocket.OPEN) {
           client.send(raw); // Envia a mensagem original (type: 'command', actuator, action)
@@ -388,21 +411,13 @@ wss.on('connection', ws => {
       return;
     }
 
-    // Dados de atuadores vindos do ESP32 (para o dashboard atualizar o status)
-    // O ESP32 agora envia logs via HTTP POST para /api/actuator/log
-    // Se o ESP32 também enviar um "actuatorStatus" via WS, esta parte pode ser usada
-    // para atualizar o estado *simulado* no servidor ou repassar para outros dashboards.
-    // Por enquanto, a prioridade é o log HTTP.
     if (msg.type === 'actuatorStatus') {
       console.log('Recebido status de atuador via WS (não usado para persistência de log):', msg.status);
-      // Se desejar que o servidor mantenha o estado em tempo real:
-      // actuatorState = msg.status;
       return;
     }
   });
 
   ws.on('close', () => {
-    // Remove o ESP32 da lista quando a conexão é fechada
     const index = espClients.indexOf(ws);
     if (index > -1) {
       espClients.splice(index, 1);
