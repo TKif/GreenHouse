@@ -784,30 +784,16 @@
       }
     }
 
-    // Função para atualizar o status dos atuadores no dashboard (baseado em mensagens WS do ESP32)
-    function updateActuatorStatusDisplay(actuator, action) {
-        let statusElement;
-        let isOn = (action === 'on' || action === 'ON_PULSE'); // 'ON_PULSE' vem do log do ESP32
+    // NOVO: Função para atualizar o status dos atuadores no dashboard com base no objeto de status completo
+    function updateActuatorStatusDisplay(status) {
+        document.getElementById('ventStatus').textContent = status.vent ? 'ON' : 'OFF';
+        document.getElementById('ventStatus').className = status.vent ? 'status-on' : 'status-off';
 
-        switch (actuator) {
-            case 'vent':
-                statusElement = document.getElementById('ventStatus');
-                break;
-            case 'irrig':
-                statusElement = document.getElementById('irrigStatus');
-                break;
-            case 'heat': // O dashboard usa 'heat', o ESP32 pode enviar 'heat' ou 'light' para esse.
-                statusElement = document.getElementById('heatStatus');
-                break;
-            default:
-                console.warn('Atuador desconhecido:', actuator);
-                return;
-        }
+        document.getElementById('irrigStatus').textContent = status.irrig ? 'ON' : 'OFF';
+        document.getElementById('irrigStatus').className = status.irrig ? 'status-on' : 'status-off';
 
-        if (statusElement) {
-            statusElement.textContent = isOn ? 'ON' : 'OFF';
-            statusElement.className = isOn ? 'status-on' : 'status-off';
-        }
+        document.getElementById('heatStatus').textContent = status.heat ? 'ON' : 'OFF';
+        document.getElementById('heatStatus').className = status.heat ? 'status-on' : 'status-off';
     }
 
     // WebSocket event handlers
@@ -831,11 +817,14 @@
         autoControlToggle.checked = currentParams.autoControl;
         console.log('Parâmetros atualizados via WebSocket:', currentParams);
       } else if (msg.type === 'command') { // Se o servidor retransmitir comandos para outros dashboards
-        updateActuatorStatusDisplay(msg.actuator, msg.action);
-        console.log('Comando recebido via WS:', msg.actuator, msg.action);
+        // Se o ESP32 enviará o status real via 'actuatorStatus', esta parte pode ser removida
+        // ou usada para feedback visual imediato antes da confirmação do ESP32.
+        // updateActuatorStatusDisplay(msg.actuator, msg.action); // NÃO MAIS NECESSÁRIO AQUI SE TIVER 'actuatorStatus'
+        console.log('Comando recebido via WS (apenas retransmissão):', msg.actuator, msg.action);
+      } else if (msg.type === 'actuatorStatus') { // NOVO: Mensagem de status de atuadores do ESP32
+        updateActuatorStatusDisplay(msg); // Atualiza todos os estados de atuadores
+        console.log('Status de atuadores recebido via WS:', msg);
       }
-      // Se o ESP32 enviar updates de status em tempo real via WS (além dos logs HTTP), processe aqui
-      // Ex: if (msg.type === 'actuatorStatusReport') { updateActuatorStatusDisplay(msg.actuator, msg.state); }
     };
 
     ws.onclose = () => {
@@ -897,7 +886,6 @@
       // Atualiza os dados a cada 30 segundos
       setInterval(fetchData, 30000);
       setInterval(loadActuatorHistory, 30000); // Atualiza o histórico a cada 30s
-      // Não é necessário um setInterval para updateActuatorStatusDisplay, pois ele é chamado por mensagens WS
     }
 
     window.onload = init;
