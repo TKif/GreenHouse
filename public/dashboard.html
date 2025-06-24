@@ -402,7 +402,7 @@
           <div class="param-item">
             <span>Controle Automático:</span>
             <label class="toggle-switch">
-              <input type="checkbox" id="autoControlToggle"> <!-- ID alterado para consistência -->
+              <input type="checkbox" id="autoControlToggle">
               <span class="slider"></span>
             </label>
           </div>
@@ -472,7 +472,10 @@
   <script>
     const serverUrl = window.location.origin;
     // Usar 'wss' para Railway se estiver em HTTPS, ou 'ws' para localhost
-    const ws = new WebSocket(`wss://${window.location.hostname}`);
+    // Verifica se a página está sendo servida via HTTPS e ajusta o protocolo WebSocket
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const ws = new WebSocket(`${wsProtocol}//${window.location.host}`);
+
 
     let sensorChart;
     let currentData = [];
@@ -489,7 +492,7 @@
     const loadHistoryBtn = document.getElementById('loadHistory');
     const actuatorFilter = document.getElementById('actuatorFilter');
     const historyLimit = document.getElementById('historyLimit');
-    const autoControlToggle = document.getElementById('autoControlToggle'); // Alterado ID
+    const autoControlToggle = document.getElementById('autoControlToggle'); // Alterado ID para consistência
 
     // Event Listeners
     themeToggle.addEventListener('click', toggleTheme);
@@ -643,7 +646,7 @@
 
         updateCurrentReadings();
         updateChartData(); // Funcao renomeada para nao confundir com a criacao do chart
-        await fetchControlParams(); // Busca parâmetros de controle para atualizar display
+        await fetchControlParams(); // Busca parâmetros de control para atualizar display
       } catch (error) {
         console.error('Erro ao buscar dados:', error);
       }
@@ -689,7 +692,7 @@
         document.getElementById('minTempThreshold').value = params.minTempThreshold;
         document.getElementById('humThreshold').value = params.humThreshold;
         document.getElementById('soilThreshold').value = params.soilThreshold;
-        document.getElementById('autoControlToggle').checked = params.autoControl; // Alterado ID
+        autoControlToggle.checked = params.autoControl; // Alterado ID
       } catch (error) {
         console.error('Erro ao buscar parâmetros:', error);
       }
@@ -825,7 +828,7 @@
         document.getElementById('minTempThreshold').value = currentParams.minTempThreshold;
         document.getElementById('humThreshold').value = currentParams.humThreshold;
         document.getElementById('soilThreshold').value = currentParams.soilThreshold;
-        document.getElementById('autoControlToggle').checked = currentParams.autoControl;
+        autoControlToggle.checked = currentParams.autoControl;
         console.log('Parâmetros atualizados via WebSocket:', currentParams);
       } else if (msg.type === 'command') { // Se o servidor retransmitir comandos para outros dashboards
         updateActuatorStatusDisplay(msg.actuator, msg.action);
